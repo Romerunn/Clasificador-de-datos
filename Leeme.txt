@@ -1,0 +1,13 @@
+***
+
+Este programa está diseñado para ser un lugar único donde guardar las notas que tomes en clase y que el programa las clasifique por curso, campo, y demás; y así no necesites tener varios lugares dónde guardar estas notas y que las puedas encontrar facilmente a la hora de estudiar.
+
+El proyecto se puede expandir a una clasificación más precisa, con diferentes cursos y campos, a la opción de transformar imágenes a texto, al uso de LaTeX, a una interfaz de usario amigable y posiblemente más.
+
+Para usar este programa abre y ejecuta "main.py" con cualquier IDE (como Visual Studio Code, Pycharm, Spyder, IDLE, etc).
+
+Para acceder al proyecto abre "Clasificador de notas.code-workspace".
+
+Si genera error, ejecuta "my_palabras.py" primero y luego "main.py".
+
+***
