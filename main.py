@@ -1,6 +1,11 @@
 import json
 import tkinter as tk
-from tkinter import simpledialog, filedialog, messagebox
+from tkinter import simpledialog, filedialog, Checkbutton, BooleanVar
+import os
+import shutil
+import docx
+import PyPDF2
+
 
 with open('palabras_ponderadas.json', 'r', encoding='utf-8') as f:
     diccionario = json.load(f)
@@ -71,13 +76,6 @@ def on_clasificar_nota(entry_widget, result_label):
     if not nota:
         result_label.config(text="Por favor, ingrese una nota.", fg=COLOR_TEXTO_ERR)
         return
-
-    # --- AQUÍ IRÍA TU LÓGICA DE CLASIFICACIÓN ---
-    # 1. Cargar el 'palabras_ponderadas.json'
-    # 2. nota_limpia = limpiar_nota(nota.lower())
-    # 3. palabras_nota = nota_limpia.split()
-    # 4. curso = curso_mayor(palabras_nota, diccionario)
-    # --- FIN DE LA LÓGICA ---
     
     # --- SIMULACIÓN (para demostración) ---
     # (Reemplaza esto con tu lógica real)
@@ -89,19 +87,11 @@ def on_clasificar_nota(entry_widget, result_label):
     if curso == "":
         resultado_texto = "No se encontró coincidencia"
         result_label.config(text=resultado_texto, fg=COLOR_TEXTO_ERR)
-        messagebox.showinfo("Resultado", resultado_texto) #
+        
     else:
         resultado_texto = f"La nota fue clasificada en el curso: {curso}"
         result_label.config(text=resultado_texto, fg=COLOR_TEXTO_OK)
-        messagebox.showinfo("Resultado", resultado_texto) #
-        
-        # --- Guardar en archivo (como en main.py) ---
-        # (Descomentar cuando la lógica esté lista)
-        # try:
-        #     with open(f"{curso}.txt", "a", encoding="utf-8") as file:
-        #         file.write(f"{nota}\n")
-        # except Exception as e:
-        #     messagebox.showerror("Error al guardar", f"No se pudo escribir en el archivo: {e}")
+
 
 # --- "VISTA 2": Interfaz de Clasificación de Nota (Inspirada en test.py) ---
 def draw_clasificar_nota_view():
@@ -180,6 +170,209 @@ def draw_clasificar_nota_view():
     )
     boton_volver.grid(row=5, column=0, pady=20, padx=20, sticky="sw") # Abajo a la izquierda
 
+
+
+
+
+
+def on_clasificar_archivo(filepath_var, check_var, result_label):
+    """
+    Función de lógica para leer, clasificar y (opcionalmente) copiar
+    el archivo seleccionado.
+    """
+    
+    filepath = filepath_var.get()
+    if not filepath:
+        result_label.config(text="Error: No se ha seleccionado ningún archivo.", fg=COLOR_TEXTO_ERR)
+        return
+
+    result_label.config(text=f"Leyendo archivo...\n{os.path.basename(filepath)}", fg=COLOR_TEXTO)
+    ventana.update_idletasks() # Forzar actualización de la UI
+
+    texto_completo = ""
+    try:
+        # --- 1. Extraer Texto del Archivo ---
+        if filepath.lower().endswith(".pdf"):
+            with open(filepath, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                for page in reader.pages:
+                    texto_completo += page.extract_text()
+                    
+        elif filepath.lower().endswith(".docx"):
+            doc = docx.Document(filepath)
+            for para in doc.paragraphs:
+                texto_completo += para.text + "\n"
+        
+        if not texto_completo:
+            result_label.config(text="Error: No se pudo extraer texto del archivo.", fg=COLOR_TEXTO_ERR)
+            return
+
+        # --- 2. Clasificar (Usando tus funciones existentes) ---
+        # (Asegúrate de tener 'diccionario' cargado desde tu JSON)
+        # (Asegúrate de que 'limpiar_nota' y 'curso_mayor' existan)
+        nota_limpia = limpiar_nota(texto_completo.lower())
+        palabras_nota = nota_limpia.split()
+        curso = curso_mayor(palabras_nota, diccionario)
+
+        # --- 3. Mostrar Resultado y Manejar Copia ---
+        if curso == "":
+            resultado_texto = "No se encontró coincidencia."
+            result_label.config(text=resultado_texto, fg=COLOR_TEXTO_ERR)
+        else:
+            resultado_texto = f"El archivo fue clasificado en el curso: {curso}"
+            
+            # --- Lógica de la Casilla de Verificación ---
+            if check_var.get(): # Si la casilla está marcada
+                try:
+                    # Crear la carpeta del curso si no existe
+                    os.makedirs(curso, exist_ok=True)
+                    
+                    # Copiar el archivo original a la nueva carpeta
+                    shutil.copy(filepath, curso)
+                    
+                    resultado_texto += f"\n\nCopia guardada en la carpeta: '{curso}/'"
+                except Exception as e:
+                    resultado_texto += f"\n\nError al copiar archivo: {e}"
+
+            result_label.config(text=resultado_texto, fg=COLOR_TEXTO_OK)
+
+    except Exception as e:
+        result_label.config(text=f"Error inesperado: {e}", fg=COLOR_TEXTO_ERR)
+
+
+def draw_clasificar_archivo_view():
+    """
+    Dibuja la interfaz para seleccionar un archivo .pdf o .docx,
+    clasificarlo y mostrar el resultado.
+    """
+    clear_window(ventana)
+
+    # --- Variables de Tkinter ---
+    # Usamos estas variables para rastrear el estado de los widgets
+    
+    # Almacena la ruta del archivo seleccionado
+    filepath_var = tk.StringVar() 
+    # Almacena el estado (True/False) de la casilla
+    copy_check_var = tk.BooleanVar(value=True) # Marcada por defecto
+
+    # --- Contenedor Principal ---
+    frame = tk.Frame(ventana, bg=COLOR_FONDO)
+    frame.pack(fill="both", expand=True)
+    frame.grid_rowconfigure(0, weight=1) # Espacio arriba
+    frame.grid_rowconfigure(6, weight=1) # Espacio para el botón de volver
+    frame.grid_rowconfigure(7, weight=1) # Espacio abajo
+    frame.grid_columnconfigure(0, weight=1)
+
+    # --- Widgets de la Interfaz ---
+
+    # 1. Etiqueta de instrucciones
+    instruccion = tk.Label(
+        frame,
+        text="Clasificar un archivo (.pdf o .docx):",
+        font=("Arial", 16),
+        fg=COLOR_TEXTO,
+        bg=COLOR_FONDO
+    )
+    instruccion.grid(row=1, column=0, pady=10)
+
+    # 2. Etiqueta para mostrar el archivo seleccionado
+    selected_file_label = tk.Label(
+        frame,
+        text="Aún no se ha seleccionado ningún archivo.",
+        font=("Arial", 12, "italic"),
+        fg=COLOR_BTN_4, # Color gris
+        bg=COLOR_FONDO
+    )
+    selected_file_label.grid(row=2, column=0, pady=5)
+
+    # --- Función interna para manejar la selección de archivos ---
+    def seleccionar_archivo():
+        filepath = filedialog.askopenfilename(
+            title="Seleccionar Archivo",
+            filetypes=(("Documentos", "*.pdf *.docx"), ("Todos los archivos", "*.*")),
+            parent=ventana
+        )
+        if filepath:
+            filepath_var.set(filepath) # Guardar la ruta
+            # Mostrar solo el nombre del archivo
+            selected_file_label.config(text=os.path.basename(filepath), fg=COLOR_TEXTO)
+        
+    # 3. Botón para Seleccionar Archivo
+    boton_seleccionar = tk.Button(
+        frame,
+        text="Seleccionar Archivo...",
+        command=seleccionar_archivo,
+        font=("Arial", 12, "bold"),
+        bg=COLOR_BTN_2,
+        fg=COLOR_TEXTO,
+        relief="flat",
+        pady=10
+    )
+    boton_seleccionar.grid(row=3, column=0, pady=10)
+
+    # 4. Casilla de Verificación (Checkbutton) para guardar copia
+    check_guardar = Checkbutton(
+        frame,
+        text="Crear carpeta del curso y guardar una copia del archivo",
+        variable=copy_check_var, # Vinculada a nuestra variable booleana
+        font=("Arial", 11),
+        bg=COLOR_FONDO,
+        fg=COLOR_TEXTO,
+        selectcolor=COLOR_FONDO, # Fondo del cuadradito
+        activebackground=COLOR_FONDO,
+        activeforeground=COLOR_TEXTO,
+        highlightthickness=0,
+        bd=0
+    )
+    check_guardar.grid(row=4, column=0, pady=10, padx=20)
+
+    # 5. Etiqueta para mostrar el resultado
+    resultado_label = tk.Label(
+        frame,
+        text="",
+        font=("Arial", 13),
+        fg=COLOR_TEXTO,
+        bg=COLOR_FONDO,
+        wraplength=600 # Para que el texto no se salga de la ventana
+    )
+    resultado_label.grid(row=5, column=0, pady=15)
+    
+    # 6. Botón para Clasificar
+    # Este botón llama a la lógica 'on_clasificar_archivo'
+    boton_clasificar = tk.Button(
+        frame,
+        text="Clasificar Archivo",
+        command=lambda: on_clasificar_archivo(filepath_var, copy_check_var, resultado_label),
+        font=("Arial", 14, "bold"),
+        bg=COLOR_BTN_1,
+        fg=COLOR_TEXTO,
+        relief="flat",
+        pady=10
+    )
+    boton_clasificar.grid(row=6, column=0, pady=(10, 20))
+
+    # 7. Botón para Volver al Menú
+    boton_volver = tk.Button(
+        frame,
+        text="← Volver al Menú",
+        command=draw_main_menu,
+        font=("Arial", 10),
+        bg=COLOR_BTN_4,
+        fg=COLOR_TEXTO,
+        relief="flat",
+        activebackground=COLOR_BTN_3,
+        activeforeground=COLOR_TEXTO,
+        pady=5
+    )
+    boton_volver.grid(row=7, column=0, pady=20, padx=20, sticky="sw")
+
+
+
+
+
+
+
+
 # --- "VISTA 1": Menú Principal (4 botones) ---
 def draw_main_menu():
     clear_window(ventana)
@@ -216,7 +409,7 @@ def draw_main_menu():
     btn_archivo = tk.Button(
         ventana,
         text="2. Clasificar Archivo\n(PDF, DOCX)",
-        command=on_clasificar_archivo, # Placeholder
+        command=draw_clasificar_archivo_view, # Placeholder
         bg=COLOR_BTN_2,
         activebackground=COLOR_BTN_1,
         activeforeground=COLOR_TEXTO,
@@ -250,14 +443,6 @@ def draw_main_menu():
 
 # --- Funciones (Placeholder) para botones 2, 3, 4 ---
 # (Siguen abriendo diálogos por ahora)
-
-def on_clasificar_archivo():
-    filepath = filedialog.askopenfilename(
-        title="2. Seleccionar Archivo",
-        filetypes=(("Documentos", "*.pdf *.docx"), ("Todos los archivos", "*.*")),
-        parent=ventana
-    )
-    if filepath: print(f"Archivo seleccionado: {filepath}")
 
 def on_clasificar_carpeta():
     folderpath = filedialog.askdirectory(title="3. Seleccionar Carpeta", parent=ventana)
